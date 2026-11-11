@@ -52,6 +52,8 @@
   .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;}
   .btn.primary:hover{background:#1d4ed8;}
   .btn.ghost{background:#f8fafc;}
+  .btn.danger-outline{color:#b91c1c;border-color:#fecaca;background:#fef2f2;}
+  .btn.danger-outline:hover{background:#fee2e2;box-shadow:0 4px 10px rgba(185,28,28,.12);}
   .status{font-size:14px;color:var(--muted);min-height:1em;transition:.2s;flex-basis:100%;text-align:center;}
   .status.ok{color:#15803d;}
   .status.warn{color:#b45309;}
@@ -110,10 +112,22 @@
   .inp:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.25);}
   input[type="date"].inp{min-width:150px;}
 
-  /* ---------- 第一欄：編號 + 固定名稱 / 可編輯名稱 ---------- */
+  /* ---------- 第一欄：勾選 + 編號 + 固定名稱 / 可編輯名稱 ---------- */
   .row-name{
     display:flex;align-items:center;gap:6px;
     min-height:38px;min-width:0;
+  }
+  .check-wrap{
+    flex:0 0 auto;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:6px;
+    cursor:pointer;
+  }
+  .check-wrap:active{background:#eef2f7;}
+  .row-check{
+    width:19px;height:19px;margin:0;
+    accent-color:var(--primary);
+    cursor:pointer;
   }
   .idx{
     flex:0 0 auto;
@@ -163,6 +177,13 @@
     white-space:nowrap;
   }
   .btn.clear:hover{background:#fee2e2;box-shadow:0 4px 10px rgba(185,28,28,.12);}
+
+  /* ---------- 表格下方：新增 / 移除 ---------- */
+  .bottom-actions{
+    display:flex;flex-wrap:wrap;gap:10px;
+    justify-content:center;margin-top:16px;
+  }
+  .bottom-actions .btn{padding:12px 22px;font-size:15px;}
 
   /* ---------- 彈出視窗 ---------- */
   .overlay{
@@ -220,7 +241,7 @@
     tbody td{
       display:flex;align-items:center;gap:10px;
       padding:7px 0;border-bottom:1px dashed #eef2f7;
-      width:auto;                       /* 覆蓋桌機版 width:1% */
+      width:auto;
     }
     tbody tr td:last-child{border-bottom:none;}
 
@@ -229,13 +250,15 @@
       flex:0 0 6.6em;
       font-size:12.5px;font-weight:600;color:#64748b;
     }
-    /* 第一欄：不重複顯示標籤，直接顯示「1. 網頁帳號」 */
+    /* 第一欄：不重複顯示標籤，直接顯示 勾選 + 編號 + 名稱 */
     tbody td.name-cell::before{display:none;}
     tbody td.name-cell{padding-bottom:10px;}
     .name-cell .row-name{min-height:0;gap:8px;}
     .name-cell .idx{font-size:15px;color:#3b82f6;}
     .name-cell .fixed-name{font-size:16.5px;}
     .name-cell .inp{font-size:16px;}
+    .check-wrap{width:34px;height:34px;}
+    .row-check{width:22px;height:22px;}
 
     /* 動作列：修正清除按鈕被壓縮遮蔽的問題 */
     td.actions{
@@ -258,6 +281,7 @@
     .next-date{min-width:0;flex:1;}
     .modal-actions .btn{flex:1;text-align:center;}
     .toolbar .btn{flex:1 1 auto;min-width:calc(50% - 10px);}
+    .bottom-actions .btn{flex:1 1 auto;}
     .note{font-size:13px;}
   }
 </style>
@@ -272,7 +296,6 @@
     <button type="button" class="btn primary" id="saveBtn">💾 儲存</button>
     <button type="button" class="btn" id="exportBtn">📤 匯出備份</button>
     <button type="button" class="btn" id="importBtnOpen">📥 匯入還原</button>
-    <button type="button" class="btn" id="addBtn">＋ 新增欄位</button>
     <span class="status" id="status"></span>
   </div>
 
@@ -313,6 +336,12 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
+  </div>
+
+  <!-- 表格下方：新增 / 移除 -->
+  <div class="bottom-actions">
+    <button type="button" class="btn" id="addBtn">＋ 新增欄位</button>
+    <button type="button" class="btn danger-outline" id="removeBtn">🗑 移除選取的欄位</button>
   </div>
 
 </div>
@@ -359,20 +388,29 @@
 
   var STORAGE_KEY = 'passwordHelper.v1';
 
-  /* 固定預設清單（名稱固定、不可編輯） */
+  /* 固定預設清單（名稱固定、不可編輯）
+     from：舊版欄位名稱 → 用來把舊資料搬過來；null 表示不搬移（保持空白） */
   var PRESET_LIST = [
-    { name: '網頁帳號',           from: 'EIP 帳號' },
-    { name: '電腦登入',           from: null },
-    { name: '電子信箱',           from: '電子信箱' },
+    { name: 'EIP',               from: null },
+    { name: '公司電腦登入',       from: null },
+    { name: '員工信箱',           from: '電子信箱' },
     { name: 'ERP',                from: 'ERP' },
     { name: 'RMS維護紀錄網',      from: 'RMS維護紀錄網' },
     { name: '人力資源管理系統',   from: '人力資源管理系統' }
   ];
 
+  /* 舊名稱 → 新名稱（給已存在新格式的使用者升級用） */
+  var RENAME_MAP = {
+    '網頁帳號': 'EIP',
+    '電腦登入': '公司電腦登入',
+    '電子信箱': '員工信箱'
+  };
+
   var tbody     = document.getElementById('tbody');
   var statusEl  = document.getElementById('status');
   var saveBtn   = document.getElementById('saveBtn');
   var addBtn    = document.getElementById('addBtn');
+  var removeBtn = document.getElementById('removeBtn');
   var exportBtn = document.getElementById('exportBtn');
   var importOpenBtn = document.getElementById('importBtnOpen');
 
@@ -415,7 +453,7 @@
   function flash(msg, type) {
     setStatus(msg, type);
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(function () { setStatus('', ''); }, 2600);
+    statusTimer = setTimeout(function () { setStatus('', ''); }, 2800);
   }
   function markDirty() {
     if (dirty) return;
@@ -424,7 +462,15 @@
     setStatus('● 有未儲存的變更', 'warn');
   }
 
-  /* ---------- 預設資料 / 舊資料升級 ---------- */
+  /* ---------- 重新編號 ---------- */
+  function renumber() {
+    Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function (tr, i) {
+      var idx = tr.querySelector('.idx');
+      if (idx) idx.textContent = (i + 1) + '.';
+    });
+  }
+
+  /* ---------- 預設資料 / 格式轉換 ---------- */
   function defaultRows() {
     return PRESET_LIST.map(function (p) {
       return { name: p.name, password: '', date: '', locked: true };
@@ -444,7 +490,7 @@
     return o;
   }
 
-  /* 舊格式（沒有 locked 欄位）→ 轉成新格式，並把 EIP 帳號資料搬給「網頁帳號」 */
+  /* 最舊格式（第一版，沒有 locked 欄位）→ 轉成新格式 */
   function migrate(rows) {
     var isNew = Array.isArray(rows) && rows.length &&
                 rows.some(function (r) { return r && ('locked' in r); });
@@ -475,11 +521,25 @@
       var n = String(r.name).trim();
       if (usedNames[n]) return;
       if (PRESET_LIST.some(function (p) { return p.from === n; })) return;
-      if (n === 'EIP 帳號') return;      /* 已併入「網頁帳號」 */
+      if (n === 'EIP 帳號') return;          /* 舊 EIP 帳號資料不搬移 */
+      if (RENAME_MAP[n]) return;              /* 舊名稱已對應到固定欄位 */
       out.push({ name: r.name, password: r.password || '', date: r.date || '', locked: false });
     });
 
     return out;
+  }
+
+  /* 名稱升級（第二版「網頁帳號 / 電腦登入 / 電子信箱」→ 新版名稱） */
+  function upgradeNames(rows) {
+    rows.forEach(function (r) {
+      if (r && r.locked && RENAME_MAP[r.name]) r.name = RENAME_MAP[r.name];
+    });
+    return rows;
+  }
+
+  function prepareRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return defaultRows();
+    return upgradeNames(migrate(rows.map(normalize)));
   }
 
   /* ---------- 更新「下一季預定更改日期」 ---------- */
@@ -497,9 +557,8 @@
   }
 
   /* ---------- 產生一列 ---------- */
-  function createRow(data, index) {
+  function createRow(data) {
     data = data || {};
-    var no = (typeof index === 'number') ? (index + 1) : (tbody.children.length + 1);
     var tr = document.createElement('tr');
 
     var nameCell;
@@ -507,7 +566,7 @@
       nameCell =
         '<td class="name-cell" data-label="網頁帳號">' +
           '<div class="row-name">' +
-            '<span class="idx">' + no + '.</span>' +
+            '<span class="idx"></span>' +
             '<span class="fixed-name">' + esc(data.name) + '</span>' +
           '</div>' +
         '</td>';
@@ -515,7 +574,10 @@
       nameCell =
         '<td class="name-cell" data-label="網頁帳號">' +
           '<div class="row-name">' +
-            '<span class="idx">' + no + '.</span>' +
+            '<label class="check-wrap" title="勾選後可移除這個欄位">' +
+              '<input type="checkbox" class="row-check">' +
+            '</label>' +
+            '<span class="idx"></span>' +
             '<input class="inp name" type="text" placeholder="請輸入帳號名稱" value="' + esc(data.name) + '">' +
           '</div>' +
         '</td>';
@@ -574,7 +636,8 @@
 
   function renderAll(rows) {
     tbody.innerHTML = '';
-    rows.forEach(function (r, i) { createRow(r, i); });
+    rows.forEach(function (r) { createRow(r); });
+    renumber();
   }
 
   /* ---------- 蒐集目前資料 ---------- */
@@ -606,23 +669,16 @@
 
   function load() {
     var rows = null;
-    var needsSave = false;
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) rows = JSON.parse(raw);
     } catch (e) { rows = null; }
 
-    if (!Array.isArray(rows) || !rows.length) {
-      rows = defaultRows();
-      needsSave = true;
-    } else {
-      var isOld = !rows.some(function (r) { return r && ('locked' in r); });
-      rows = migrate(rows.map(normalize));
-      if (isOld) needsSave = true;
-    }
+    var prepared = prepareRows(rows);
+    renderAll(prepared);
 
-    renderAll(rows);
-    if (needsSave) save(true);
+    /* 首次開啟或格式升級後，順手寫回，確保下次讀到的是新格式 */
+    save(true);
   }
 
   /* ---------- 彈出視窗開關 ---------- */
@@ -713,25 +769,53 @@
 
     if (!Array.isArray(rows)) { flash('格式錯誤：備份內容應為陣列', 'err'); return; }
 
-    rows = rows.map(normalize);
-    rows = migrate(rows);
-    if (!rows.length) rows = defaultRows();
-
-    renderAll(rows);
+    var prepared = prepareRows(rows);
+    renderAll(prepared);
     save(true);
     closeModal(importModal);
-    flash('已還原 ' + rows.length + ' 筆資料，並已儲存 ✓', 'ok');
+    flash('已還原 ' + prepared.length + ' 筆資料，並已儲存 ✓', 'ok');
   });
 
-  /* ---------- 其他事件 ---------- */
+  /* ---------- 儲存 ---------- */
   saveBtn.addEventListener('click', function () { save(false); });
 
+  /* ---------- 新增欄位（在表格下方） ---------- */
   addBtn.addEventListener('click', function () {
-    var tr = createRow({ name: '', password: '', date: '', locked: false }, tbody.children.length);
+    var tr = createRow({ name: '', password: '', date: '', locked: false });
+    renumber();
     markDirty();
     var ni = tr.querySelector('.name');
     if (ni) ni.focus();
     if (tr.scrollIntoView) tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  /* ---------- 移除選取的欄位 ---------- */
+  removeBtn.addEventListener('click', function () {
+    var checked = Array.prototype.filter.call(
+      tbody.querySelectorAll('.row-check'),
+      function (cb) { return cb.checked; }
+    );
+
+    if (!checked.length) {
+      flash('請先勾選要移除的欄位', 'warn');
+      return;
+    }
+
+    var count = checked.length;
+    var ok = window.confirm(
+      '確定要移除選取的 ' + count + ' 個欄位嗎？\n\n' +
+      '移除後無法復原（除非先前有「匯出備份」）。'
+    );
+    if (!ok) return;
+
+    checked.forEach(function (cb) {
+      var tr = cb.closest('tr');
+      if (tr) tr.remove();
+    });
+
+    renumber();
+    markDirty();
+    flash('已移除 ' + count + ' 個欄位', 'ok');
   });
 
   window.addEventListener('beforeunload', function (e) {
