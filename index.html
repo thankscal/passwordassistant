@@ -45,12 +45,14 @@
     font-size:15px;font-family:inherit;cursor:pointer;
     transition:transform .15s, box-shadow .15s, background .15s;
     box-shadow:0 1px 2px rgba(15,23,42,.06);
+    white-space:nowrap;
   }
   .btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(15,23,42,.10);}
   .btn:active{transform:translateY(0);}
   .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;}
   .btn.primary:hover{background:#1d4ed8;}
-  .status{font-size:14px;color:var(--muted);min-height:1em;transition:.2s;}
+  .btn.ghost{background:#f8fafc;}
+  .status{font-size:14px;color:var(--muted);min-height:1em;transition:.2s;flex-basis:100%;text-align:center;}
   .status.ok{color:#15803d;}
   .status.warn{color:#b45309;}
   .status.err{color:#dc2626;}
@@ -60,13 +62,17 @@
     background:#eff6ff;
     border-left:4px solid #60a5fa;
     border-radius:8px;
-    padding:11px 15px;
+    padding:12px 16px;
     font-size:13.5px;
     line-height:1.8;
     color:#334155;
     margin-bottom:18px;
   }
   .note b{color:#1e3a8a;}
+  .note ul.risk{margin:6px 0 10px;padding-left:22px;}
+  .note ul.risk li{margin:3px 0;}
+  .note .safe{color:#15803d;font-weight:600;}
+  .note .danger{color:#b91c1c;}
 
   /* ---------- 表格 ---------- */
   .card{
@@ -104,6 +110,22 @@
   .inp:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.25);}
   input[type="date"].inp{min-width:150px;}
 
+  /* ---------- 第一欄：編號 + 固定名稱 / 可編輯名稱 ---------- */
+  .row-name{
+    display:flex;align-items:center;gap:6px;
+    min-height:38px;min-width:0;
+  }
+  .idx{
+    flex:0 0 auto;
+    color:#94a3b8;font-weight:700;font-size:14px;
+    font-variant-numeric:tabular-nums;
+  }
+  .fixed-name{
+    font-weight:600;color:#1f2937;
+    line-height:1.4;word-break:break-word;
+  }
+  .row-name .inp{flex:1;min-width:0;}
+
   .pw-wrap{display:flex;gap:6px;align-items:center;}
   .eye{
     flex:0 0 auto;width:38px;height:38px;
@@ -138,12 +160,51 @@
   .btn.clear{
     padding:7px 14px;font-size:14px;
     color:#b91c1c;border-color:#fecaca;background:#fef2f2;
+    white-space:nowrap;
   }
   .btn.clear:hover{background:#fee2e2;box-shadow:0 4px 10px rgba(185,28,28,.12);}
 
-  /* ---------- 手機版：卡片式 ---------- */
+  /* ---------- 彈出視窗 ---------- */
+  .overlay{
+    position:fixed;inset:0;z-index:50;
+    background:rgba(15,23,42,.45);
+    display:flex;align-items:center;justify-content:center;
+    padding:16px;
+  }
+  .overlay[hidden]{display:none;}
+  .modal{
+    background:#fff;border-radius:14px;
+    padding:20px;
+    width:100%;max-width:540px;max-height:86vh;overflow:auto;
+    box-shadow:0 20px 50px rgba(15,23,42,.30);
+  }
+  .modal h3{margin:0 0 6px;font-size:18px;color:#0f172a;}
+  .hint{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.7;}
+  .modal textarea{
+    width:100%;min-height:170px;padding:10px;
+    border:1px solid var(--line);border-radius:8px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px;line-height:1.5;resize:vertical;
+    outline:none;color:#334155;background:#f8fafc;
+  }
+  .modal textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.25);background:#fff;}
+  .modal-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px;}
+  .file-label{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:9px 16px;border:1px dashed #93c5fd;border-radius:9px;
+    background:#eff6ff;color:#1d4ed8;font-size:14px;cursor:pointer;
+    margin-bottom:10px;
+  }
+  .file-label:hover{background:#dbeafe;}
+  .file-label input{display:none;}
+  .warn-text{
+    font-size:12.5px;color:#b45309;background:#fffbeb;
+    border-radius:8px;padding:8px 11px;margin:10px 0 0;line-height:1.7;
+  }
+
+  /* ---------- 手機版：卡片式（主要使用情境） ---------- */
   @media (max-width:760px){
-    body{padding:16px 10px 50px;}
+    body{padding:16px 10px 56px;}
     .card{padding:0;background:transparent;box-shadow:none;border-radius:0;overflow:visible;}
     table,thead,tbody,tr,td{display:block;width:100%;}
     thead{display:none;}
@@ -159,18 +220,45 @@
     tbody td{
       display:flex;align-items:center;gap:10px;
       padding:7px 0;border-bottom:1px dashed #eef2f7;
+      width:auto;                       /* 覆蓋桌機版 width:1% */
     }
     tbody tr td:last-child{border-bottom:none;}
+
     tbody td::before{
       content:attr(data-label);
-      flex:0 0 7.2em;
+      flex:0 0 6.6em;
       font-size:12.5px;font-weight:600;color:#64748b;
     }
-    td.actions{justify-content:flex-end;padding-top:12px;}
+    /* 第一欄：不重複顯示標籤，直接顯示「1. 網頁帳號」 */
+    tbody td.name-cell::before{display:none;}
+    tbody td.name-cell{padding-bottom:10px;}
+    .name-cell .row-name{min-height:0;gap:8px;}
+    .name-cell .idx{font-size:15px;color:#3b82f6;}
+    .name-cell .fixed-name{font-size:16.5px;}
+    .name-cell .inp{font-size:16px;}
+
+    /* 動作列：修正清除按鈕被壓縮遮蔽的問題 */
+    td.actions{
+      width:auto !important;
+      justify-content:flex-end;
+      padding-top:12px;
+      gap:0;
+    }
     td.actions::before{display:none;}
+    .btn.clear{
+      width:auto;
+      min-width:104px;
+      padding:11px 22px;
+      font-size:15px;
+      text-align:center;
+    }
+
     .inp{font-size:16px;}          /* 避免 iOS 自動放大 */
     .pw-wrap{flex:1;min-width:0;}
     .next-date{min-width:0;flex:1;}
+    .modal-actions .btn{flex:1;text-align:center;}
+    .toolbar .btn{flex:1 1 auto;min-width:calc(50% - 10px);}
+    .note{font-size:13px;}
   }
 </style>
 </head>
@@ -179,22 +267,36 @@
 
   <h1>🔐 密碼小幫手</h1>
 
-  <!-- 儲存鍵 + 新增欄位 -->
+  <!-- 工具列 -->
   <div class="toolbar">
     <button type="button" class="btn primary" id="saveBtn">💾 儲存</button>
+    <button type="button" class="btn" id="exportBtn">📤 匯出備份</button>
+    <button type="button" class="btn" id="importBtnOpen">📥 匯入還原</button>
     <button type="button" class="btn" id="addBtn">＋ 新增欄位</button>
     <span class="status" id="status"></span>
   </div>
 
   <!-- 說明 -->
   <div class="note">
-    <b>備註：本地保存的位置在手機的哪裡？</b><br>
+    <b>📌 備註：本地保存的位置在手機的哪裡？</b><br>
     資料只存在<b>這支手機的「瀏覽器」裡面</b>（技術名稱叫 LocalStorage），<b>不會</b>存成一個檔案，
-    所以在手機的「檔案管理」或「相簿」裡是找不到的，實際位置大約是：<br>
+    所以在手機的「檔案管理」或「相簿」裡是找不到的，實體位置大約是：<br>
     • <b>Android（Chrome）</b>：存在 Chrome App 的內部資料區，需 Root 才看得到實體檔案。<br>
-    • <b>iPhone（Safari）</b>：存在 Safari 的「網站資料」中，iOS 不開放使用者直接瀏覽。<br>
-    ※ 因為是綁在「這個瀏覽器」上，所以<b>清除瀏覽器資料／快取、使用無痕模式、換手機或換瀏覽器，資料都會消失</b>，
-    建議重要的密碼另外自行備份一份。
+    • <b>iPhone（Safari）</b>：存在 Safari 的「網站資料」中，iOS 不開放使用者直接瀏覽。<br><br>
+
+    <b class="danger">⚠ 以下情況資料會遺失（遺失後無法救回，請務必先「匯出備份」）：</b>
+    <ul class="risk">
+      <li>按瀏覽器「清除瀏覽資料」，並勾選了「Cookie 和網站資料」</li>
+      <li>使用<b>無痕／私密瀏覽模式</b>（關閉視窗就清空）</li>
+      <li>換手機、換瀏覽器（Chrome ↔ Safari 各自獨立，不互通）</li>
+      <li>瀏覽器設定為「關閉時自動清除網站資料」</li>
+      <li>iPhone Safari 數週～數月未開啟此網頁，可能被系統回收儲存資料</li>
+      <li>手機重灌、送修還原、換新機</li>
+    </ul>
+
+    <b class="safe">✅ 不會遺失：</b>只是關掉網頁、關機、重新打開瀏覽器，資料都還在。<br>
+    <b>💡 建議：</b>每次更新完密碼就按一下「匯出備份」，把備份檔存到雲端或傳給自己；
+    換手機前也請先匯出，再到新手機「匯入還原」。
   </div>
 
   <!-- 表格 -->
@@ -215,17 +317,70 @@
 
 </div>
 
+<!-- ========== 匯出備份視窗 ========== -->
+<div class="overlay" id="exportModal" hidden>
+  <div class="modal">
+    <h3>📤 匯出備份</h3>
+    <p class="hint">以下是目前的全部資料。請按「下載檔案」存成 .json，或按「複製文字」貼到記事本、LINE、Email 傳給自己。</p>
+    <textarea id="exportText" readonly spellcheck="false"></textarea>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" data-close="exportModal">關閉</button>
+      <button type="button" class="btn" id="copyBtn">📋 複製文字</button>
+      <button type="button" class="btn primary" id="downloadBtn">⬇ 下載檔案</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 匯入還原視窗 ========== -->
+<div class="overlay" id="importModal" hidden>
+  <div class="modal">
+    <h3>📥 匯入還原</h3>
+    <p class="hint">選擇先前下載的備份檔，或把備份文字貼到下方文字框。</p>
+
+    <label class="file-label">
+      📁 選擇備份檔
+      <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain">
+    </label>
+
+    <textarea id="importText" placeholder="在這裡貼上備份內容…" spellcheck="false"></textarea>
+
+    <p class="warn-text">⚠ 還原會<b>覆蓋目前表格裡的所有資料</b>。若目前內容還沒備份，請先取消，按「匯出備份」保存後再回來。</p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" data-close="importModal">取消</button>
+      <button type="button" class="btn primary" id="importBtnDo">確認還原</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   'use strict';
 
   var STORAGE_KEY = 'passwordHelper.v1';
-  var DEFAULT_NAMES = ['EIP 帳號', '電子信箱', 'ERP', 'RMS維護紀錄網', '人力資源管理系統'];
 
-  var tbody    = document.getElementById('tbody');
-  var statusEl = document.getElementById('status');
-  var saveBtn  = document.getElementById('saveBtn');
-  var addBtn   = document.getElementById('addBtn');
+  /* 固定預設清單（名稱固定、不可編輯） */
+  var PRESET_LIST = [
+    { name: '網頁帳號',           from: 'EIP 帳號' },
+    { name: '電腦登入',           from: null },
+    { name: '電子信箱',           from: '電子信箱' },
+    { name: 'ERP',                from: 'ERP' },
+    { name: 'RMS維護紀錄網',      from: 'RMS維護紀錄網' },
+    { name: '人力資源管理系統',   from: '人力資源管理系統' }
+  ];
+
+  var tbody     = document.getElementById('tbody');
+  var statusEl  = document.getElementById('status');
+  var saveBtn   = document.getElementById('saveBtn');
+  var addBtn    = document.getElementById('addBtn');
+  var exportBtn = document.getElementById('exportBtn');
+  var importOpenBtn = document.getElementById('importBtnOpen');
+
+  var exportModal = document.getElementById('exportModal');
+  var importModal = document.getElementById('importModal');
+  var exportText  = document.getElementById('exportText');
+  var importText  = document.getElementById('importText');
+  var importFile  = document.getElementById('importFile');
 
   var dirty = false;
   var statusTimer = null;
@@ -237,6 +392,10 @@
     });
   }
   function pad(n) { return String(n).padStart(2, '0'); }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
 
   /* 日期 + n 個月（自動處理月底，例如 1/31 +3 個月 = 4/30） */
   function addMonths(dateStr, n) {
@@ -256,13 +415,71 @@
   function flash(msg, type) {
     setStatus(msg, type);
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(function () { setStatus('', ''); }, 2400);
+    statusTimer = setTimeout(function () { setStatus('', ''); }, 2600);
   }
   function markDirty() {
     if (dirty) return;
     dirty = true;
     clearTimeout(statusTimer);
     setStatus('● 有未儲存的變更', 'warn');
+  }
+
+  /* ---------- 預設資料 / 舊資料升級 ---------- */
+  function defaultRows() {
+    return PRESET_LIST.map(function (p) {
+      return { name: p.name, password: '', date: '', locked: true };
+    });
+  }
+
+  function normalize(r) {
+    r = r || {};
+    var date = (r.date == null) ? '' : String(r.date);
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) date = '';
+    var o = {
+      name:     (r.name == null) ? '' : String(r.name),
+      password: (r.password == null) ? '' : String(r.password),
+      date:     date
+    };
+    if ('locked' in r) o.locked = !!r.locked;
+    return o;
+  }
+
+  /* 舊格式（沒有 locked 欄位）→ 轉成新格式，並把 EIP 帳號資料搬給「網頁帳號」 */
+  function migrate(rows) {
+    var isNew = Array.isArray(rows) && rows.length &&
+                rows.some(function (r) { return r && ('locked' in r); });
+    if (isNew) return rows;
+
+    if (!Array.isArray(rows) || !rows.length) return defaultRows();
+
+    var byName = {};
+    rows.forEach(function (r) {
+      if (!r || !r.name) return;
+      byName[String(r.name).trim()] = r;
+    });
+
+    var usedNames = {};
+    var out = PRESET_LIST.map(function (p) {
+      var src = p.from ? byName[p.from] : null;
+      if (src) usedNames[p.from] = true;
+      return {
+        name: p.name,
+        password: src ? (src.password || '') : '',
+        date: src ? (src.date || '') : '',
+        locked: true
+      };
+    });
+
+    rows.forEach(function (r) {
+      if (!r || !r.name) return;
+      var n = String(r.name).trim();
+      if (usedNames[n]) return;
+      if (PRESET_LIST.some(function (p) { return p.from === n; })) return;
+      if (n === 'EIP 帳號') return;      /* 已併入「網頁帳號」 */
+      out.push({ name: r.name, password: r.password || '', date: r.date || '', locked: false });
+    });
+
+    return out;
   }
 
   /* ---------- 更新「下一季預定更改日期」 ---------- */
@@ -280,14 +497,32 @@
   }
 
   /* ---------- 產生一列 ---------- */
-  function createRow(data) {
+  function createRow(data, index) {
     data = data || {};
+    var no = (typeof index === 'number') ? (index + 1) : (tbody.children.length + 1);
     var tr = document.createElement('tr');
 
+    var nameCell;
+    if (data.locked) {
+      nameCell =
+        '<td class="name-cell" data-label="網頁帳號">' +
+          '<div class="row-name">' +
+            '<span class="idx">' + no + '.</span>' +
+            '<span class="fixed-name">' + esc(data.name) + '</span>' +
+          '</div>' +
+        '</td>';
+    } else {
+      nameCell =
+        '<td class="name-cell" data-label="網頁帳號">' +
+          '<div class="row-name">' +
+            '<span class="idx">' + no + '.</span>' +
+            '<input class="inp name" type="text" placeholder="請輸入帳號名稱" value="' + esc(data.name) + '">' +
+          '</div>' +
+        '</td>';
+    }
+
     tr.innerHTML =
-      '<td data-label="網頁帳號">' +
-        '<input class="inp name" type="text" placeholder="請輸入帳號" value="' + esc(data.name) + '">' +
-      '</td>' +
+      nameCell +
       '<td data-label="密碼">' +
         '<div class="pw-wrap">' +
           '<input class="inp pw" type="password" placeholder="請輸入密碼" autocomplete="off" value="' + esc(data.password) + '">' +
@@ -301,19 +536,18 @@
         '<div class="next-date">—</div>' +
       '</td>' +
       '<td class="actions">' +
-        '<button type="button" class="btn clear" title="只清空這一列的密碼與日期">清空</button>' +
+        '<button type="button" class="btn clear" title="只清空這一列的資料">清空</button>' +
       '</td>';
 
-    /* 日期變更 → 重算下一季 */
     var dateInput = tr.querySelector('.date');
     dateInput.addEventListener('input',  function () { updateNext(tr); markDirty(); });
     dateInput.addEventListener('change', function () { updateNext(tr); markDirty(); });
 
-    /* 帳號 / 密碼輸入 → 標記未儲存 */
-    tr.querySelector('.name').addEventListener('input', markDirty);
+    var nameInput = tr.querySelector('.name');
+    if (nameInput) nameInput.addEventListener('input', markDirty);
+
     tr.querySelector('.pw').addEventListener('input', markDirty);
 
-    /* 顯示 / 隱藏密碼 */
     tr.querySelector('.eye').addEventListener('click', function (e) {
       var p = tr.querySelector('.pw');
       var show = (p.type === 'password');
@@ -322,9 +556,9 @@
       p.focus();
     });
 
-    /* 清空：只清這一列 */
     tr.querySelector('.clear').addEventListener('click', function () {
-      tr.querySelector('.name').value = '';
+      var ni = tr.querySelector('.name');
+      if (ni) ni.value = '';
       tr.querySelector('.pw').value = '';
       tr.querySelector('.date').value = '';
       tr.querySelector('.pw').type = 'password';
@@ -338,59 +572,168 @@
     return tr;
   }
 
+  function renderAll(rows) {
+    tbody.innerHTML = '';
+    rows.forEach(function (r, i) { createRow(r, i); });
+  }
+
   /* ---------- 蒐集目前資料 ---------- */
   function collectRows() {
     return Array.prototype.map.call(tbody.querySelectorAll('tr'), function (tr) {
+      var nameInput = tr.querySelector('.name');
+      var fixedName = tr.querySelector('.fixed-name');
       return {
-        name:     tr.querySelector('.name').value,
+        name:     nameInput ? nameInput.value : (fixedName ? fixedName.textContent : ''),
         password: tr.querySelector('.pw').value,
-        date:     tr.querySelector('.date').value
+        date:     tr.querySelector('.date').value,
+        locked:   !nameInput
       };
     });
   }
 
-  /* ---------- 儲存 ---------- */
-  function save() {
+  /* ---------- 儲存 / 載入 ---------- */
+  function save(silent) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(collectRows()));
       dirty = false;
-      flash('已儲存到本機 ✓', 'ok');
+      if (!silent) flash('已儲存到本機 ✓', 'ok');
+      return true;
     } catch (err) {
       flash('儲存失敗：' + err.message, 'err');
+      return false;
     }
   }
 
-  /* ---------- 載入 ---------- */
   function load() {
     var rows = null;
+    var needsSave = false;
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) rows = JSON.parse(raw);
     } catch (e) { rows = null; }
 
-    var hasData = Array.isArray(rows) && rows.some(function (r) {
-      return r && (r.name || r.password || r.date);
-    });
-
-    if (!hasData) {
-      rows = DEFAULT_NAMES.map(function (n) {
-        return { name: n, password: '', date: '' };
-      });
+    if (!Array.isArray(rows) || !rows.length) {
+      rows = defaultRows();
+      needsSave = true;
+    } else {
+      var isOld = !rows.some(function (r) { return r && ('locked' in r); });
+      rows = migrate(rows.map(normalize));
+      if (isOld) needsSave = true;
     }
-    rows.forEach(function (r) { createRow(r); });
+
+    renderAll(rows);
+    if (needsSave) save(true);
   }
 
-  /* ---------- 事件 ---------- */
-  saveBtn.addEventListener('click', save);
+  /* ---------- 彈出視窗開關 ---------- */
+  function openModal(el) { el.hidden = false; }
+  function closeModal(el) {
+    el.hidden = true;
+    if (el === importModal) {
+      importText.value = '';
+      importFile.value = '';
+    }
+  }
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      closeModal(document.getElementById(b.dataset.close));
+    });
+  });
+  [exportModal, importModal].forEach(function (ov) {
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) closeModal(ov);
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeModal(exportModal); closeModal(importModal); }
+  });
+
+  /* ---------- 匯出備份 ---------- */
+  exportBtn.addEventListener('click', function () {
+    exportText.value = JSON.stringify(collectRows(), null, 2);
+    openModal(exportModal);
+    exportText.scrollTop = 0;
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', function () {
+    try {
+      var blob = new Blob([exportText.value], { type: 'application/json;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = '密碼小幫手備份_' + todayStr() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      flash('備份檔已下載 ✓', 'ok');
+    } catch (err) {
+      flash('下載失敗，請改用「複製文字」', 'err');
+    }
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var text = exportText.value;
+    function done(ok) {
+      flash(ok ? '已複製到剪貼簿 ✓' : '複製失敗，請長按文字框全選複製', ok ? 'ok' : 'err');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () {
+        exportText.select();
+        try { done(document.execCommand('copy')); } catch (e) { done(false); }
+      });
+    } else {
+      exportText.select();
+      try { done(document.execCommand('copy')); } catch (e) { done(false); }
+    }
+  });
+
+  /* ---------- 匯入還原 ---------- */
+  importOpenBtn.addEventListener('click', function () {
+    openModal(importModal);
+    importText.focus();
+  });
+
+  importFile.addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () { importText.value = String(reader.result || ''); };
+    reader.onerror = function () { flash('檔案讀取失敗', 'err'); };
+    reader.readAsText(f, 'utf-8');
+  });
+
+  document.getElementById('importBtnDo').addEventListener('click', function () {
+    var raw = importText.value.trim();
+    if (!raw) { flash('請先選擇檔案或貼上備份內容', 'err'); return; }
+
+    var rows;
+    try { rows = JSON.parse(raw); }
+    catch (e) { flash('格式錯誤：這不是有效的備份內容', 'err'); return; }
+
+    if (!Array.isArray(rows)) { flash('格式錯誤：備份內容應為陣列', 'err'); return; }
+
+    rows = rows.map(normalize);
+    rows = migrate(rows);
+    if (!rows.length) rows = defaultRows();
+
+    renderAll(rows);
+    save(true);
+    closeModal(importModal);
+    flash('已還原 ' + rows.length + ' 筆資料，並已儲存 ✓', 'ok');
+  });
+
+  /* ---------- 其他事件 ---------- */
+  saveBtn.addEventListener('click', function () { save(false); });
 
   addBtn.addEventListener('click', function () {
-    var tr = createRow({ name: '', password: '', date: '' });
+    var tr = createRow({ name: '', password: '', date: '', locked: false }, tbody.children.length);
     markDirty();
-    tr.querySelector('.name').focus();
+    var ni = tr.querySelector('.name');
+    if (ni) ni.focus();
     if (tr.scrollIntoView) tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
-  /* 離開頁面前提醒（有未儲存變更時） */
   window.addEventListener('beforeunload', function (e) {
     if (dirty) { e.preventDefault(); e.returnValue = ''; }
   });
